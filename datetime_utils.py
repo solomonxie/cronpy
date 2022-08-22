@@ -47,6 +47,12 @@ def get_nth_week_by_datetime(dt: datetime) -> int:
     return n
 
 
+def get_nth_weekday_of_datetime(dt: datetime) -> int:
+    carry = dt.day % 7
+    n = int((dt.day - carry) / 7) + (1 if carry else 0)
+    return n
+
+
 def how_many_weeks_of_month(year: int, month: int) -> int:
     max_days = get_n_days_of_month(year, month)
     head = 7 - datetime(year=year, month=month, day=1).isoweekday()
