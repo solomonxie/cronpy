@@ -22,7 +22,7 @@ class Cronpy:
         * 3 * * * D-2 ==> Every minute of 3AM every day
         """
         self.now = now or datetime_utils.get_utc_now()
-        self.last_schedules = []
+        self.last_schedule = None
         self.cron = cron
         self.sign = 1
         parts = cron.split(' ')
@@ -42,6 +42,12 @@ class Cronpy:
             self.cron_nweek = dow[dow.index('#')+1:]
         else:
             raise NotImplementedError(f'NOT SUPPORTED Day of Week: {dow}')
+        # Extended Cron Expression (For metrics)
+        # target = parts[5] if len(parts) >= 6 else 'D-0'
+        # self.granularity = {'D': 'daily', 'W': 'weekly', 'M': 'monthly'}[target[0]]
+        # delta_granularity = {'D': 'days', 'W': 'weeks', 'M': 'months'}[target[0]]
+        # self.delta_n_periods = int(target[1:])
+        # self.date_delta = relativedelta(**{delta_granularity: self.delta_n_periods})
         # FINAL
         self.options = [[]] * 7  # HARD LIMIT
         self.fixed = [None] * 7
@@ -49,7 +55,7 @@ class Cronpy:
         self._set_init_options(self.cron_minute, MINUTE, range(60))
         self._set_init_options(self.cron_hour, HOUR, range(24))
         self._set_init_options(self.cron_month, MONTH, range(1, 13))
-        self._set_init_options('*', YEAR, [self.now.year, self.now.year + 1])
+        self._set_init_options('*', YEAR, [self.now.year - 1, self.now.year, self.now.year + 1])
         self._set_day_options(self.now)
 
     def _set_init_options(self, cron: str, idx: int, xrange: list):
@@ -71,8 +77,8 @@ class Cronpy:
         for dom in dom_options:
             next_dt = dt.replace(day=dom)
             dow = next_dt.isoweekday()
-            nth = datetime_utils.get_nth_weekday_of_datetime(next_dt)
-            if dow in dow_options and nth in nweek_options:
+            nweek = datetime_utils.get_nth_weekday_of_datetime(next_dt)
+            if dow in dow_options and nweek in nweek_options:
                 options.append(next_dt.day)
         self.options[DOM] = options
         return True
@@ -96,18 +102,19 @@ class Cronpy:
         return options
 
     def _incr_year(self, dt: datetime) -> datetime:
-        next_dt = dt.replace(year=dt.year + 1)
+        next_dt = dt.replace(year=dt.year + 1 * self.sign)
         self.options[YEAR] = [next_dt.year]
         return next_dt
 
     def _incr_month(self, dt: datetime) -> datetime:
-        options_next = [v for v in self.options[MONTH] if v > dt.month]
+        options_next = [v for v in self.options[MONTH] if (v - dt.month) * self.sign > 0]
+        inext = 0 if self.sign > 0 else -1
         if self.fixed[MONTH]:
             next_dt = self._incr_year(dt)
         elif options_next:
-            next_dt = dt.replace(month=options_next[0])
+            next_dt = dt.replace(month=options_next[inext])
         else:
-            next_dt = self._incr_year(dt.replace(month=self.options[MONTH][0]))
+            next_dt = self._incr_year(dt.replace(month=self.options[MONTH][inext]))
         # UPDATE DAY OPTIONS WHEN MONTH/YEAR CHANGES
         self._set_day_options(next_dt)
         if not self.options[DOM]:
@@ -115,42 +122,45 @@ class Cronpy:
         return next_dt
 
     def _incr_day(self, dt: datetime) -> datetime:
-        options_next = [v for v in self.options[DOM] if v > dt.day]
+        options_next = [v for v in self.options[DOM] if (v - dt.day) * self.sign > 0]
+        inext = 0 if self.sign > 0 else -1
         if self.fixed[DOM]:
             next_dt = self._incr_month(dt)
         elif options_next:
-            next_dt = dt.replace(day=options_next[0])
+            next_dt = dt.replace(day=options_next[inext])
         else:
             next_dt = self._incr_month(dt)
-            next_dt = next_dt.replace(day=self.options[DOM][0])
+            next_dt = next_dt.replace(day=self.options[DOM][inext])
         return next_dt
 
     def _incr_hour(self, dt: datetime) -> datetime:
-        options_next = [v for v in self.options[HOUR] if v > dt.hour]
+        options_next = [v for v in self.options[HOUR] if (v - dt.hour) * self.sign > 0]
+        inext = 0 if self.sign > 0 else -1
         if self.fixed[HOUR] is not None:
             next_dt = self._incr_day(dt)
         elif dt < self.now:
             next_dt = self._incr_day(dt)
         elif options_next:
-            next_dt = dt.replace(hour=options_next[0])
+            next_dt = dt.replace(hour=options_next[inext])
         else:
             # FIXME: NEED TO CHECK -> INCREASE ONLY WHEN Y/M/D IS NOT CERTAIN
-            next_dt = self._incr_day(dt.replace(hour=self.options[HOUR][0]))
+            next_dt = self._incr_day(dt.replace(hour=self.options[HOUR][inext]))
         return next_dt
 
     def _incr_minute(self, dt: datetime) -> datetime:
-        options_next = [v for v in self.options[MINUTE] if v > dt.minute]
+        options_next = [v for v in self.options[MINUTE] if (v - dt.minute) * self.sign > 0]
+        inext = 0 if self.sign > 0 else -1
         if self.fixed[MINUTE] is not None:
             next_dt = self._incr_hour(dt)
         elif dt < self.now:
             next_dt = self._incr_hour(dt)
         elif options_next:
-            next_dt = dt.replace(minute=options_next[0])
+            next_dt = dt.replace(minute=options_next[inext])
         else:
-            next_dt = self._incr_hour(dt.replace(minute=self.options[MINUTE][0]))
+            next_dt = self._incr_hour(dt.replace(minute=self.options[MINUTE][inext]))
         return next_dt
 
-    def next_schedule(self):
+    def match_schedule(self) -> datetime:
         dt = datetime(
             year=self.fixed[YEAR] or self.now.year,
             month=self.fixed[MONTH] or self.now.month,
@@ -162,9 +172,9 @@ class Cronpy:
         )
         while dt.year < 2100:
             # CHECK
-            last = self.last_schedules[-1] if len(self.last_schedules) else None
+            delta = self.sign * (dt - (self.last_schedule or self.now)).total_seconds()
             checks = [
-                (dt > last) if last else (dt >= self.now),
+                delta > 0 if self.last_schedule else delta >= 0,
                 dt.year in self.options[YEAR],
                 dt.month in self.options[MONTH],
                 dt.day in self.options[DOM],
@@ -172,8 +182,7 @@ class Cronpy:
                 dt.minute in self.options[MINUTE],
             ]
             if all(checks):
-                self.now = dt
-                self.last_schedules.append(dt)
+                self.last_schedule = self.now = dt
                 return dt
             if self.fixed[MINUTE] is None:
                 dt = self._incr_minute(dt)
@@ -181,17 +190,47 @@ class Cronpy:
                 dt = self._incr_hour(dt)
             else:
                 dt = self._incr_day(dt)
-        raise NotADirectoryError('Not found schedule')
+        raise NotImplementedError('Not found schedule')
+
+    def next_schedule(self) -> datetime:
+        self.sign = 1
+        return self.match_schedule()
+
+    def prev_schedule(self) -> datetime:
+        self.sign = -1
+        return self.match_schedule()
+
+    def get_sla_by_metric_date(self, metric_date_str: str):
+        # Extended Cron Expression (For metrics)
+        parts = self.cron.split(' ')
+        target = parts[5] if len(parts) >= 6 else 'D-1'
+        n_periods = int(target[target.index('-') + 1:])
+        granularity = {'D': 'daily', 'W': 'weekly', 'M': 'monthly'}[target[0]]
+        # delta_granularity = {'D': 'days', 'W': 'weeks', 'M': 'months'}[target[0]]
+        # date_delta = relativedelta(**{delta_granularity: self.delta_n_periods})
+        metric_date = self.now = datetime_utils.string_to_date(metric_date_str)
+        metric_weekend = metric_date.replace(day=metric_date.day + 6 - metric_date.isoweekday() % 7)
+        dt = None
+        while self.now.year < 2100:
+            dt = self.next_schedule()
+            dt_weekend = dt.replace(day=dt.day + 6 - dt.isoweekday() % 7)
+            if granularity == 'daily' and dt.day - metric_date.day >= n_periods:
+                break
+            elif granularity == 'weekly' and (dt_weekend - metric_weekend).days >= n_periods * 7:
+                break
+            elif granularity == 'monthly' and dt.month - metric_date.month >= n_periods:
+                break
+        return dt
 
 
 def main():
     from datetime_utils import date_to_time
     now = datetime(2022, 8, 10, 5, 0, 0)
     c = Cronpy('0 3 11,13,20 * *', now=now)
-    assert '2022-08-11 03:00:00' == date_to_time(c.next_schedule())
-    assert '2022-08-13 03:00:00' == date_to_time(c.next_schedule())
-    assert '2022-08-20 03:00:00' == date_to_time(c.next_schedule())
-    assert '2022-09-11 03:00:00' == date_to_time(c.next_schedule())
+    assert '2022-07-20 03:00:00' == date_to_time(c.prev_schedule())
+    assert '2022-07-13 03:00:00' == date_to_time(c.prev_schedule())
+    assert '2022-07-11 03:00:00' == date_to_time(c.prev_schedule())
+    assert '2022-06-20 03:00:00' == date_to_time(c.prev_schedule())
     # sla = c.get_sla_by_metric_date('2022-08-10')
     # print('SLA:', sla)
     # for t in c.prev_schedule():
