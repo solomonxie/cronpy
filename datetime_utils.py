@@ -56,8 +56,8 @@ def get_nth_weekday_of_datetime(dt: datetime) -> int:
 def how_many_weeks_of_month(year: int, month: int) -> int:
     max_days = get_n_days_of_month(year, month)
     head = 7 - datetime(year=year, month=month, day=1).isoweekday()
-    tail = max_days - head - 28
-    n = 4
+    tail = max_days - head - 21
+    n = 3
     if head > 0:
         n += 1
     if tail > 0:
