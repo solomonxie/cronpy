@@ -9,17 +9,19 @@ def test_cron_next_schedule():
     # ==>NEXT SCHEDULE
     c = Cronpy('0 3 * * *', now)
     assert '2022-08-11 03:00:00' == date_to_time(c.next_schedule())
-    # assert '2022-08-12 03:00:00' == date_to_time(c.next_schedule())
-    result = Cronpy('0 3 10 * *', now).next_schedule()
-    assert '2022-09-10 03:00:00' == date_to_time(result)
-    result = Cronpy('0 3 * * 2#1', now).next_schedule()
-    assert '2022-09-06 03:00:00' == date_to_time(result)
-    result = Cronpy('0 3 * * 2', now).next_schedule()
-    assert '2022-08-16 03:00:00' == date_to_time(result)
-    result = Cronpy('0 3 */4 * *', now).next_schedule()
-    assert '2022-08-12 03:00:00' == date_to_time(result)
-    result = Cronpy('0 3 */7 * *', now).next_schedule()
-    assert '2022-08-14 03:00:00' == date_to_time(result)
+    assert '2022-08-12 03:00:00' == date_to_time(c.next_schedule())
+
+    c = Cronpy('0 3 10 * *', now)
+    assert '2022-09-10 03:00:00' == date_to_time(c.next_schedule())
+
+    c = Cronpy('0 3 * * 2#1', now)
+    assert '2022-09-06 03:00:00' == date_to_time(c.next_schedule())
+    c = Cronpy('0 3 * * 2', now)
+    assert '2022-08-16 03:00:00' == date_to_time(c.next_schedule())
+    c = Cronpy('0 3 */4 * *', now)
+    assert '2022-08-12 03:00:00' == date_to_time(c.next_schedule())
+    c = Cronpy('0 3 */7 * *', now)
+    assert '2022-08-14 03:00:00' == date_to_time(c.next_schedule())
     c = Cronpy('0 3 11,13,20 * *', now)
     assert '2022-08-11 03:00:00' == date_to_time(c.next_schedule())
     assert '2022-08-13 03:00:00' == date_to_time(c.next_schedule())
@@ -30,8 +32,8 @@ def test_cron_next_schedule():
     assert '2022-08-21 03:00:00' == date_to_time(c.next_schedule())
     assert '2022-08-22 03:00:00' == date_to_time(c.next_schedule())
     assert '2022-09-20 03:00:00' == date_to_time(c.next_schedule())
-    result = Cronpy('* 3 * * *', now).next_schedule()
-    assert '2022-08-11 03:00:00' == date_to_time(result)
+    c = Cronpy('* 3 * * *', now)
+    assert '2022-08-11 03:00:00' == date_to_time(c.next_schedule())
 
 
 def test_cron_prev_schedule():
