@@ -28,6 +28,7 @@ class Cronpy:
         * 3 * * * D-2 ==> Every minute of 3AM every day
         """
         self.now = now or get_utc_now()
+        self.last_schedules = []
         self.cron = cron
         self.sign = 1
         parts = cron.split(' ')
@@ -112,14 +113,13 @@ class Cronpy:
         return next_dt
 
     def _incr_month(self, dt: datetime) -> datetime:
-        if self.fixed[MONTH]:
-            return dt.replace(month=self.fixed[MONTH])
         options_next = [v for v in self.options[MONTH] if v > dt.month]
-        if options_next:
+        if self.fixed[MONTH]:
+            next_dt = self._incr_year(dt)
+        elif options_next:
             next_dt = dt.replace(month=options_next[0])
         else:
-            next_dt = dt.replace(month=self.options[MONTH][0])
-            next_dt = self._incr_year(next_dt)
+            next_dt = self._incr_year(dt.replace(month=self.options[MONTH][0]))
         # UPDATE DAY OPTIONS WHEN MONTH/YEAR CHANGES
         self._set_day_options(next_dt)
         if not self.options[DOM]:
@@ -130,7 +130,9 @@ class Cronpy:
         # if all([self.fixed[DOM], self.fixed[DOW], self.fixed[NWEEK]]):
         #     return dt
         options_next = [v for v in self.options[DOM] if v > dt.day]
-        if options_next:
+        if self.fixed[DOM]:
+            next_dt = self._incr_month(dt)
+        elif options_next:
             next_dt = dt.replace(day=options_next[0])
         else:
             next_dt = self._incr_month(dt)
@@ -138,26 +140,28 @@ class Cronpy:
         return next_dt
 
     def _incr_hour(self, dt: datetime) -> datetime:
-        if self.fixed[HOUR]:
-            return dt.replace(hour=self.fixed[HOUR])
         options_next = [v for v in self.options[HOUR] if v > dt.hour]
-        if options_next:
+        if self.fixed[HOUR] is not None:
+            next_dt = self._incr_day(dt)
+        elif dt < self.now:
+            next_dt = self._incr_day(dt)
+        elif options_next:
             next_dt = dt.replace(hour=options_next[0])
         else:
-            next_dt = dt.replace(hour=self.options[HOUR][0])
             # FIXME: NEED TO CHECK -> INCREASE ONLY WHEN Y/M/D IS NOT CERTAIN
-            next_dt = self._incr_day(next_dt)
+            next_dt = self._incr_day(dt.replace(hour=self.options[HOUR][0]))
         return next_dt
 
     def _incr_minute(self, dt: datetime) -> datetime:
-        if self.fixed[MINUTE]:
-            return dt.replace(minute=self.fixed[MINUTE])
         options_next = [v for v in self.options[MINUTE] if v > dt.minute]
-        if options_next:
+        if self.fixed[MINUTE] is not None:
+            next_dt = self._incr_hour(dt)
+        elif dt < self.now:
+            next_dt = self._incr_hour(dt)
+        elif options_next:
             next_dt = dt.replace(minute=options_next[0])
         else:
-            next_dt = dt.replace(minute=self.options[MINUTE][0])
-            next_dt = self._incr_hour(dt)
+            next_dt = self._incr_hour(dt.replace(minute=self.options[MINUTE][0]))
         return next_dt
 
     def next_schedule(self):
@@ -172,8 +176,9 @@ class Cronpy:
         )
         while dt.year < 2100:
             # CHECK
+            last = self.last_schedules[-1] if len(self.last_schedules) else None
             checks = [
-                dt >= self.now,
+                (dt > last) if last else (dt >= self.now),
                 dt.year in self.options[YEAR],
                 dt.month in self.options[MONTH],
                 dt.day in self.options[DOM],
@@ -182,6 +187,7 @@ class Cronpy:
             ]
             if all(checks):
                 self.now = dt
+                self.last_schedules.append(dt)
                 return dt
             if self.fixed[MINUTE] is None:
                 dt = self._incr_minute(dt)
@@ -194,8 +200,11 @@ class Cronpy:
 
 def main():
     now = datetime(2022, 8, 10, 5, 0, 0)
-    result = Cronpy('* 3 * * *', now=now).next_schedule()
-    assert '2022-08-11 03:00:00' == date_to_time(result)
+    c = Cronpy('0 3 11,13,20 * *', now=now)
+    assert '2022-08-11 03:00:00' == date_to_time(c.next_schedule())
+    assert '2022-08-13 03:00:00' == date_to_time(c.next_schedule())
+    assert '2022-08-20 03:00:00' == date_to_time(c.next_schedule())
+    assert '2022-09-11 03:00:00' == date_to_time(c.next_schedule())
     # sla = c.get_sla_by_metric_date('2022-08-10')
     # print('SLA:', sla)
     # for t in c.prev_schedule():
