@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from cronpy import Cronpy
-from cronpy.datetime_utils import date_to_time
+from cron_utils import Cronpy
+from datetime_utils import date_to_time
 
 
 def test_cron_next_schedule():
@@ -64,14 +64,14 @@ def test_cron_prev_schedule():
     assert '2022-08-09 08:59:00' == date_to_time(c.prev_schedule())
 
 
-def test_cron_get_sla_by_metric_date():
+def test_cron_latest_schedule_by_date():
     c = Cronpy('0 15 * * * D-2')
-    assert '2022-08-12 15:00:00' == date_to_time(c.get_sla_by_metric_date('2022-08-10'))
+    assert '2022-08-12 15:00:00' == date_to_time(c.latest_schedule_by_date('2022-08-10'))
     c = Cronpy('0 3 10 * * M-1')
-    assert '2022-09-10 03:00:00' == date_to_time(c.get_sla_by_metric_date('2022-08-10'))
+    assert '2022-09-10 03:00:00' == date_to_time(c.latest_schedule_by_date('2022-08-10'))
     c = Cronpy('0 3 * * 2#1 M-1')
-    assert '2022-09-06 03:00:00' == date_to_time(c.get_sla_by_metric_date('2022-08-10'))
+    assert '2022-09-06 03:00:00' == date_to_time(c.latest_schedule_by_date('2022-08-10'))
     c = Cronpy('0 3 * * 2 W-1')
-    assert '2022-08-16 03:00:00' == date_to_time(c.get_sla_by_metric_date('2022-08-10'))
+    assert '2022-08-16 03:00:00' == date_to_time(c.latest_schedule_by_date('2022-08-10'))
     c = Cronpy('0 3 */2 * * D-2')
-    assert '2022-08-12 03:00:00' == date_to_time(c.get_sla_by_metric_date('2022-08-10'))
+    assert '2022-08-12 03:00:00' == date_to_time(c.latest_schedule_by_date('2022-08-10'))
