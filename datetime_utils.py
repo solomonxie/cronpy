@@ -60,6 +60,8 @@ def how_many_weeks_of_month(year: int, month: int) -> int:
     n = 3
     if head > 0:
         n += 1
-    if tail > 0:
+    if 0 < tail <= 7:
         n += 1
-    return n
+    elif tail > 7:
+        n += 2
+    return int(n)
