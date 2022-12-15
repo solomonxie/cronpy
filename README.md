@@ -1,4 +1,3 @@
-# cronpy (Work in Progress)
-Cron Expression parser in Python, supports non-standard extended expressions.
-
-> This project is still being worked in progress.
+# Cronpy
+Parsing Cron Expression in Python, supports non-standard extended expressions.
+This is a standalone lib, no external dependencies needed.

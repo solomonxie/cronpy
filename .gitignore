@@ -1,6 +1,7 @@
 # Misc
 .DS_Store
 *.pyc
+*.xml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
