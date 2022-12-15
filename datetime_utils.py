@@ -53,6 +53,12 @@ def get_nth_weekday_of_datetime(dt: datetime) -> int:
     return n
 
 
+def how_many_days_of_month(year: int, month: int):
+    month_start = datetime(year=year, month=month % 12 + 1, day=1)
+    max_days = (month_start - timedelta(days=1)).day
+    return max_days
+
+
 def how_many_weeks_of_month(year: int, month: int) -> int:
     max_days = get_n_days_of_month(year, month)
     head = 7 - datetime(year=year, month=month, day=1).isoweekday()

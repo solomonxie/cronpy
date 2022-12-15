@@ -43,7 +43,7 @@ def test_cron_next_schedule():
 
 
 def test_cron_prev_schedule():
-    now = datetime(2022, 8, 10, 5, 0, 0)
+    now = datetime(2022, 8, 10, 5, 59, 10)
     # ==>PREVIEWS SCHEDULE
     c = Cronpy('0 3 * * *', now)
     assert '2022-08-10 03:00:00' == date_to_time(c.prev_schedule())
@@ -62,16 +62,3 @@ def test_cron_prev_schedule():
     assert '2022-08-08 03:00:00' == date_to_time(c.prev_schedule())
     c = Cronpy('* 8 * * *', now)
     assert '2022-08-09 08:59:00' == date_to_time(c.prev_schedule())
-
-
-def test_cron_latest_schedule_by_date():
-    c = Cronpy('0 15 * * * D-2')
-    assert '2022-08-12 15:00:00' == date_to_time(c.latest_schedule_by_date('2022-08-10'))
-    c = Cronpy('0 3 10 * * M-1')
-    assert '2022-09-10 03:00:00' == date_to_time(c.latest_schedule_by_date('2022-08-10'))
-    c = Cronpy('0 3 * * 2#1 M-1')
-    assert '2022-09-06 03:00:00' == date_to_time(c.latest_schedule_by_date('2022-08-10'))
-    c = Cronpy('0 3 * * 2 W-1')
-    assert '2022-08-16 03:00:00' == date_to_time(c.latest_schedule_by_date('2022-08-10'))
-    c = Cronpy('0 3 */2 * * D-2')
-    assert '2022-08-12 03:00:00' == date_to_time(c.latest_schedule_by_date('2022-08-10'))
