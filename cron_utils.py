@@ -42,12 +42,6 @@ class Cronpy:
             self.cron_nweek = dow[dow.index('#')+1:]
         else:
             raise NotImplementedError(f'NOT SUPPORTED Day of Week: {dow}')
-        # Extended Cron Expression (For metrics)
-        # target = parts[5] if len(parts) >= 6 else 'D-0'
-        # self.granularity = {'D': 'daily', 'W': 'weekly', 'M': 'monthly'}[target[0]]
-        # delta_granularity = {'D': 'days', 'W': 'weeks', 'M': 'months'}[target[0]]
-        # self.delta_n_periods = int(target[1:])
-        # self.date_delta = relativedelta(**{delta_granularity: self.delta_n_periods})
         # FINAL
         self.options = [[]] * 7  # HARD LIMIT
         self.fixed = [None] * 7
@@ -56,7 +50,7 @@ class Cronpy:
         self._set_init_options(self.cron_hour, HOUR, range(24))
         self._set_init_options(self.cron_month, MONTH, range(1, 13))
         self._set_init_options('*', YEAR, [self.now.year - 1, self.now.year, self.now.year + 1])
-        self._set_day_options(self.now)
+        self.options[DOM] = self._get_day_options(self.now)
 
     def _set_init_options(self, cron: str, idx: int, xrange: list):
         options = self._get_options(cron, xrange)
@@ -67,10 +61,10 @@ class Cronpy:
             raise NotImplementedError(f'NOT SUPPORTED {UNIT_NAMES[idx]}: {cron}')
         return options
 
-    def _set_day_options(self, dt: datetime) -> bool:
-        mo_end_day = datetime_utils.get_n_days_of_month(dt.year, dt.month)
+    def _get_day_options(self, dt: datetime) -> list:
+        max_days = datetime_utils.how_many_days_of_month(dt.year, dt.month)
         max_weeks = datetime_utils.how_many_weeks_of_month(dt.year, dt.month)
-        dom_options = self._get_options(self.cron_dom, range(1, mo_end_day + 1))
+        dom_options = self._get_options(self.cron_dom, range(1, max_days + 1))
         dow_options = self._get_options(self.cron_dow, range(1, 8))
         nweek_options = self._get_options(self.cron_nweek, range(1, max_weeks + 1))
         options = []
@@ -80,8 +74,7 @@ class Cronpy:
             nweek = datetime_utils.get_nth_weekday_of_datetime(next_dt)
             if dow in dow_options and nweek in nweek_options:
                 options.append(next_dt.day)
-        self.options[DOM] = options
-        return True
+        return options
 
     def _get_options(self, cron: str, xrange: range) -> list:
         options = []
@@ -112,11 +105,11 @@ class Cronpy:
         if self.fixed[MONTH]:
             next_dt = self._incr_year(dt)
         elif options_next:
-            next_dt = dt.replace(month=options_next[inext])
+            next_dt = dt.replace(month=options_next[inext], day=1)
         else:
             next_dt = self._incr_year(dt.replace(month=self.options[MONTH][inext]))
         # UPDATE DAY OPTIONS WHEN MONTH/YEAR CHANGES
-        self._set_day_options(next_dt)
+        self.options[DOM] = self._get_day_options(next_dt)  # FIXME
         if not self.options[DOM]:
             self._incr_month(next_dt)
         return next_dt
@@ -165,12 +158,12 @@ class Cronpy:
             year=self.fixed[YEAR] or self.now.year,
             month=self.fixed[MONTH] or self.now.month,
             day=self.fixed[DOM] or self.now.day,
-            hour=self.fixed[HOUR] or self.now.hour,
-            minute=self.fixed[MINUTE] or self.now.minute,
+            hour=self.fixed[HOUR] if self.fixed[HOUR] else self.now.hour,
+            minute=self.fixed[MINUTE] if self.fixed[MINUTE] is not None else self.now.minute,
             second=0,
             microsecond=0,
         )
-        while dt.year < 2100:
+        while 1999 < dt.year < 2100:
             # CHECK
             delta = self.sign * (dt - (self.last_schedule or self.now)).total_seconds()
             checks = [
@@ -199,28 +192,6 @@ class Cronpy:
     def prev_schedule(self) -> datetime:
         self.sign = -1
         return self.match_schedule()
-
-    def latest_schedule_by_date(self, metric_date_str: str):
-        # Extended Cron Expression (For metrics)
-        parts = self.cron.split(' ')
-        target = parts[5] if len(parts) >= 6 else 'D-1'
-        n_periods = int(target[target.index('-') + 1:])
-        granularity = {'D': 'daily', 'W': 'weekly', 'M': 'monthly'}[target[0]]
-        # delta_granularity = {'D': 'days', 'W': 'weeks', 'M': 'months'}[target[0]]
-        # date_delta = relativedelta(**{delta_granularity: self.delta_n_periods})
-        metric_date = self.now = datetime_utils.string_to_date(metric_date_str)
-        metric_weekend = metric_date.replace(day=metric_date.day + 6 - metric_date.isoweekday() % 7)
-        dt = None
-        while self.now.year < 2100:
-            dt = self.next_schedule()
-            dt_weekend = dt.replace(day=dt.day + 6 - dt.isoweekday() % 7)
-            if granularity == 'daily' and dt.day - metric_date.day >= n_periods:
-                break
-            elif granularity == 'weekly' and (dt_weekend - metric_weekend).days >= n_periods * 7:
-                break
-            elif granularity == 'monthly' and dt.month - metric_date.month >= n_periods:
-                break
-        return dt
 
 
 def main():
