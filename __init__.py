@@ -1,2 +1,1 @@
-# NOQA: FLAKE8
-from cron_utils import Cronpy
+from cron_utils import Cronpy  # NOQA: F401
